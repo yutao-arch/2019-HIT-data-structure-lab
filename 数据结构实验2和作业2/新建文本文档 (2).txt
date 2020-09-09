@@ -1,0 +1,296 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <limits.h>
+typedef struct
+{
+	char ch; //储存被编码的字符
+	int count; //字符出现次数
+	char bits[300]; //字符编码位串
+}codenode;
+//单个字符编码结构体
+
+typedef struct
+{
+	codenode weight;
+	int lchild;
+	int rchild;
+	int parent;
+}htnode;
+//哈夫曼树静态三叉链表
+
+codenode array[128];   //储存各种字符的信息
+int number;  //字符的种类个数
+
+void initht(htnode* t)
+{
+	int i;
+	for (i = 0; i < (2 * number - 1); i++)
+	{
+		t[i].lchild = -1;
+		t[i].rchild = -1;
+		t[i].parent = -1;
+	}
+}
+//初始化
+
+void input(htnode* t)
+{
+	int i;
+	for (i = 0; i < number; i++)
+	{
+		t[i].weight.ch = array[i].ch;
+		t[i].weight.count = array[i].count;
+	}
+}
+//输入叶节点的权值
+
+void selectmin(htnode* t, int n, int* p1, int* p2)
+{
+	int i, j;
+	for (i = 0; i <= n; i++)
+	{
+		if (t[i].parent == -1)
+		{
+			*p1 = i;
+			break;
+		}
+	}
+	for (j = i + 1; j <= n; j++)
+	{
+		if (t[j].parent == -1)
+		{
+			*p2 = j;
+			break;
+		}
+	}
+	for (i = 0; i <= n; i++)
+	{
+		if ((t[*p1].weight.count > t[i].weight.count) && (t[i].parent == -1) && (*p2 != i))
+		{
+			*p1 = i;
+		}
+	}
+	for (j = 0; j <= n; j++)
+	{
+		if ((t[*p2].weight.count > t[j].weight.count) && (t[j].parent == -1) && (*p1 != j))
+		{
+			*p2 = j;
+		}
+	}
+}
+//求两个最小的权值
+
+void createht(htnode* t)
+{
+	int i, p1, p2;
+	initht(t);      //初始化
+	input(t);      //输入权值
+	for (i = number; i < (2 * number - 1); i++)
+	{
+		selectmin(t, i - 1, &p1, &p2);
+		t[p1].parent = t[p2].parent = i;
+		t[i].lchild = p1;
+		t[i].rchild = p2;
+		t[i].weight.count = t[p1].weight.count + t[p2].weight.count;
+		t[p1].weight.count = 1000; //表示该处已被访问过
+		t[p2].weight.count = 1000;
+	}
+}
+//构造哈夫曼树
+
+int readcompress()
+{
+	FILE* fp;
+	char ch;
+	int flag, i, counter = 0;
+	fp = fopen("read_to_compress.txt", "rb");
+	if (fp == NULL)
+	{
+		printf("读入文件read_to_compress.txt失败\n");
+		exit(0);
+	}
+	printf("待压缩文件已经成功读入\n");
+	number = 0;
+	while (!feof(fp))
+	{
+		fscanf(fp, "%c", &ch);
+		counter++;
+		flag = 0;
+		for (i = 0; i < number; i++)
+		{
+			if (ch == array[i].ch)
+			{
+				array[i].count++;
+				flag = 1;
+				break;
+			}
+		}
+		if (flag == 0)
+		{
+			array[number].ch = ch;
+			array[number].count = 1;
+			number++;
+		}
+	}
+	fclose(fp);
+	for (i = 0; i < number; i++)
+	{
+		printf("字符%c 在待压缩文件中的出现次数为：%d\n", array[i].ch, array[i].count);
+	}
+	printf("\n");
+	printf("待压缩文件的总字节数为：%d\n", counter);
+	return counter;
+}
+//读入待压缩文件，并返回读入总字节数
+
+void hufmanencoding(htnode* t)
+{
+	int c, p, i, j;
+	int start;
+	for (i = 0; i < number; i++)
+	{
+		for (j = 0; j < 300; j++)
+		{
+			t[i].weight.bits[j] = '\0';
+		}
+	}
+	for (i = 0; i < number; i++)
+	{
+		c = i;
+		start = number;
+		while ((p = t[c].parent) >= 0)
+		{
+			t[i].weight.bits[--start] = (t[p].lchild == c) ? '0' : '1';
+			c = p;  //继续上溯;
+		}
+	}
+}
+//进行编码，将编码保存到weight.bits[300]中，并打印每个字符的哈夫曼编码
+
+int writecompress(htnode* t)
+{
+	FILE* fp_r, * fp_w;
+	char ch, buffer = 0;
+	int i, j, index = 7, counter = 0;
+	fp_r = fopen("read_to_compress.txt", "rb");
+	fp_w = fopen("write_to_compress.txt", "wb");
+	if (fp_r == NULL)
+	{
+		printf("读入文件read_to_compress.txt失败！\n");
+		exit(0);
+	}
+	if (fp_w == NULL)
+	{
+		printf("写入文件write_to_compress.txt失败！\n");
+		exit(0);
+	}
+	while (!feof(fp_r))
+	{
+		fscanf(fp_r, "%c", &ch);
+		for (i = 0; i < number; i++)
+		{
+			if (t[i].weight.ch == ch)
+			{
+				for (j = 0; j < 300; j++)
+				{
+					if (t[i].weight.bits[j] != '\0')
+					{
+						buffer |= t[i].weight.bits[j] - '0' << index;
+						index--;
+						if (index == -1)
+						{
+							fprintf(fp_w, "%c", buffer);
+							buffer = 0;
+							index = 7;
+							counter++;
+						}
+					}
+				}
+			}
+		}
+	}
+	printf("文件已成功为哈夫曼编码压缩！\n\n");
+	printf("压缩文件总字节数为%d\n", counter);
+	fclose(fp_w);
+	fclose(fp_r);
+	return counter;
+}
+//压缩并写入文件write_to_compress.txt中,并返回压缩字节数
+
+int decompress(htnode* t)
+{
+	char ch;
+	FILE* fp_r, * fp_w;
+	int i, j, index, count, child, parent;
+	printf("\n解压所产生的总字符数：%d\n", t[2 * number - 2].weight.count);
+	fp_r = fopen("write_to_compress.txt", "rb");
+	fp_w = fopen("write_to_decompress.txt", "wb");
+	if (fp_r == NULL)
+	{
+		printf("读入文件write_to_compress.txt失败！\n");
+		exit(0);
+	}
+	if (fp_w == NULL)
+	{
+		printf("写入文件write_to_decompress.txt失败！\n");
+		exit(0);
+	}
+	index = 7;  //初始的偏移量
+	parent = 2 * number - 2; //根的位置
+	count = t[parent].weight.count; //总字符数
+	while (!feof(fp_r))
+	{
+		fscanf(fp_r, "%c", &ch);
+		index = 7;
+		while (index != -1)
+		{
+			if (((ch >> index) & 1) == 0)
+			{
+				child = t[parent].lchild;
+			}
+			else
+				child = t[parent].rchild;
+			if (t[child].lchild < 0 && t[child].rchild < 0) //如果为叶子节点
+			{
+				fprintf(fp_w, "%c", t[child].weight.ch);
+				parent = 2 * number - 2;
+				count--;
+			}
+			else
+			{
+				parent = child;
+			}
+			index--;
+			if (count == 0)
+			{
+				printf("文件已成功解压！\n");
+				fclose(fp_w);
+				fclose(fp_r);
+				return t[2 * number - 2].weight.count;
+			}
+		}
+	}
+}
+//解压文件储存到write_to_decompress.txt中，并返回解压产生的总字节数
+
+void menu()
+{
+	printf("--------------------------------------");
+	printf("1.读入压缩文件\n");
+	printf("2.构建哈夫曼树\n");
+	printf("3.");
+}
+
+int main()
+{
+	htnode* HT;
+	printf("请输入你要执行的操作:\n");
+	readcompress();
+	HT = (htnode*)malloc((2 * number - 1) * sizeof(htnode));
+	createht(HT);
+	hufmanencoding(HT);
+	writecompress(HT);  //压缩
+	decompress(HT); //文件解压缩
+	return 0;
+}

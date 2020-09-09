@@ -1,0 +1,7 @@
+# depslib dependency file v1.0
+1575206855 source:c:\program files\codeblocks\chengxu\hufman_tree\main.c
+	<stdio.h>
+	<stdlib.h>
+	<string.h>
+	<limits.h>
+

@@ -1,0 +1,6 @@
+# depslib dependency file v1.0
+1572720546 source:c:\program files\codeblocks\chengxu\jiadian_system\main.c
+	<stdio.h>
+	<stdlib.h>
+	<string.h>
+

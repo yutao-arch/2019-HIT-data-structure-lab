@@ -1,0 +1,7 @@
+# depslib dependency file v1.0
+1575990510 source:c:\program files\codeblocks\chengxu\mini_tree\main.c
+	<stdio.h>
+	<stdlib.h>
+	<limits.h>
+	<math.h>
+
